@@ -1,5 +1,4 @@
 import pandas as pd
-
 def load_data(anonymized_path, auxiliary_path):
     """
     Load anonymized and auxiliary datasets.
@@ -19,26 +18,19 @@ def link_records(anon_df, aux_df):
     containing ONLY uniquely matched records.
     """
 
-    anon_ids = []
-    matched_names = []
+    qi_cols = ["age", "zip3", "gender"]
 
-    for i in range(len(anon_df)):
-        match = False
-        for j in range(len(aux_df)):
-            anon = anon_df[i]
-            aux = aux_df[j]
+    candidates = anon_df[["anon_id", *qi_cols]].merge(
+        aux_df[[*qi_cols, "name"]],
+        on=qi_cols,
+        how="inner",
+    ).rename(columns={"name": "matched_name"})
 
-            if anon['age'] == aux['age'] and anon['zip3'] == aux['zip3'] and anon['gender'] == aux['gender']:
-                if match:
-                    i = anon_ids.index(anon['anon_id'])
-                    anon_ids.pop(i)
-                    matched_names.pop(i)
-                else:
-                    anon_ids.append(anon['anon_id'])
-                    matched_names.append(aux['name'])
+    candidates = candidates[["anon_id", "matched_name"]].drop_duplicates()
+    name_counts = candidates.groupby("anon_id")["matched_name"].nunique()
+    unique_ids = name_counts[name_counts == 1].index
 
-    d = {"anon_id": anon_ids, "matched_name": matched_names}
-    return pd.DataFrame(data=d)
+    return candidates[candidates["anon_id"].isin(unique_ids)].reset_index(drop=True)
 
         
 
